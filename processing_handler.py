@@ -30,30 +30,34 @@ class ProcessRunner(object):
         self.workers = []
         self.proc = None
 
-    def __call__(self, func):
+    def __call__(self, func, *args, **kwargs):
         """
         Call process with task in threading
+
         :param func: task function
+        :param args and kwargs: other params not from queue or queue_res
         :return: None
         """
-        self.proc = Process(target=self.threading, args=(func,), daemon=True)
+        self.proc = Process(target=self.threading, args=(func, *args), kwargs=kwargs, daemon=True)
         self.proc.start()
 
-    def threading(self, func):
+    def threading(self, func, *args, **kwargs):
         """
         Run workers for task in loop
         :param func: task
+        :param args and kwargs: other params not from queue or queue_res
         :return:
         """
         with ThreadPoolExecutor(max_workers=self.max_workers) as worker:
             self.workers.append(worker)
-            self._in_loop(func, worker)
+            self._in_loop(func, worker, *args, **kwargs)
 
-    def _in_loop(self, func, worker):
+    def _in_loop(self, func, worker, *args, **kwargs):
         """
         Run worker in loop
         :param func: task
         :param worker: worker
+        :param args and kwargs: other params not from queue or queue_res
         :return:
         """
         while True:
@@ -61,7 +65,7 @@ class ProcessRunner(object):
                 break
             if self.queue_res:
                 func = self._put_result(func)
-            worker.submit(func, self.queue.get())
+            worker.submit(func, self.queue.get(), *args, **kwargs)
         worker.shutdown()
         return None
 
@@ -79,7 +83,7 @@ class ProcessRunner(object):
 
     def close(self):
         """
-        Close process runner, before stop all workers
+        Stop all workers and close process runner
         :return: None
         """
         self.stopper = True
